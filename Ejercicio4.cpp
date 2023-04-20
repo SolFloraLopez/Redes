@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-#include <ctime>
 
 int main(int argc, char *argv[]) {
 
@@ -15,8 +14,6 @@ int main(int argc, char *argv[]) {
 
     struct addrinfo hints;
     struct addrinfo *result;
-    struct tm *tm;
-    time_t t;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     
