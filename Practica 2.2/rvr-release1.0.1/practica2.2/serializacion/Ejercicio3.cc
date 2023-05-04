@@ -34,7 +34,20 @@ public:
 
     int from_bin(char* data)
     {
+        char* aux = data;
+
+        memcpy(&pos_x, aux, sizeof(int16_t));
+        aux += sizeof(int16_t);
+        memcpy(&pos_y, aux, sizeof(int16_t));
+        aux += sizeof(int16_t);
+        memcpy(name, aux, MAX_NAME);
+        
         return 0;
+    }
+
+    void show()
+    {
+        std::cout <<"Name: " << name << " Pos X: " << pos_x << " Pos Y: " << pos_y << std::endl;
     }
 
 
@@ -61,8 +74,16 @@ int main(int argc, char **argv)
     close(fd);
 
     // 3. Leer el fichero
+    char* file = (char*)malloc(one_w.size());
+    fd = open("./playerdata", O_RDONLY, 0666);
+    read(fd, file, one_w.size());
+    close(fd);
+
     // 4. "Deserializar" en one_r
+    one_r.from_bin(file);
+
     // 5. Mostrar el contenido de one_r
+    one_r.show();
 
     return 0;
 }
