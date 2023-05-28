@@ -1,0 +1,8 @@
+- 10 de ancho x 40 de alto (400 casillas)
+- 6 tetraminos
+- Codificar el tablero como un array de 400 bytes, cada byte especifica el color de la casilla o si está vacía.
+- Generación de tetraminos mediante pooling.
+- UDP
+- 1 tick = La pieza cae un bloque.
+- La velocidad del juego va aumentando.
+- Sincronizar el estado del juego cada tick.
