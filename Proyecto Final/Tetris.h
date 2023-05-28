@@ -1,11 +1,12 @@
-#include SDL2SDL.h
-#include systime.h
-#include Serializable.h
-#include Tetraminos.h
+#include <SDL2/SDL.h>
+#include <sys/time.h>
+#include <vector>
+#include "Serializable.h"
+#include "Tetraminos.h"
 
-class TetrisBoard  public Serializable
+class TetrisBoard : public Serializable
 {
-public
+public:
     static const uint8_t LENGTH = 10;
     static const uint8_t HEIGHT = 40;
     static const uint8_t TILE_SIZE = 20;
@@ -13,7 +14,7 @@ public
     TetrisBoard(){};
 
     void to_bin() {};
-    int from_bin(char  data) {return 0;};
+    int from_bin(char * data) {return 0;};
 
     enum TileType
     {
@@ -28,12 +29,13 @@ public
     };
 
     uint8_t tiles[400] = { 0 };
-    char playerName;
+    char* playerName;
+    int nextTetraminoID;
 };
 
 class TetrisClient 
 {
-public
+public:
     TetrisClient(){};
     ~TetrisClient()
     {
@@ -48,6 +50,8 @@ public
     void DrawBoard(int offsetX, int offsetY, TetrisBoard b);
     void DrawGrid(int offsetX, int offsetY, TetrisBoard b);
     void DrawTiles(int offsetX, int offsetY, TetrisBoard b);
+    void DrawNextPiece(int offsetX, int offsetY, TetrisBoard b);
+    void SetToTileColor(uint8_t id);
 
     void ProcessInput(SDL_Event);
 
@@ -56,16 +60,40 @@ public
     bool CheckBoundsDown();
     bool CheckColissions();
 
-    SDL_Window  window = nullptr;
-    SDL_Renderer  renderer = nullptr;
+    bool CorrectRotation();
+    bool CorrectPosition();
 
-    Tetramino currentTetramino;
+    void SetPiece();
+    void ChangePiece();
+    void GeneratePieces();
+
+    void CheckRows();
+    void UpdateRows(int rows);
+
+    SDL_Window * window = nullptr;
+    SDL_Renderer * renderer = nullptr;
+
+    Tetramino* currentTetramino;
+    std::vector<uint8_t> tetraminoPool;
+
     TetrisBoard board1;
     TetrisBoard board2;
     int positions[4];
     int lastPivotPosition;
     int lastRotation;
 
+    bool set = false;
+
     bool run = false;
+
     struct timeval initialTime, elapsedTime;
+
+    int framesPerTick = 60;
+    int remainingFrames = 60;
+
+    int ticksToSpeedUp = 10;
+    int remainingTicks = 10;
+
+    int rowsDeleted = 0;
+    int firstRow = 0;
 };
