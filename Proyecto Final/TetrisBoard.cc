@@ -1,7 +1,7 @@
 #include "TetrisBoard.h"
 
 // ##RENDER UTILS##
-void TetrisBoard::DrawGrid(int offsetX, int offsetY, SDL_Renderer* renderer)
+void TetrisBoard::DrawGrid(int offsetX, int offsetY, bool drawNext, SDL_Renderer* renderer)
 {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
@@ -20,14 +20,18 @@ void TetrisBoard::DrawGrid(int offsetX, int offsetY, SDL_Renderer* renderer)
         SDL_RenderDrawLine(renderer, x, offsetY, x, y);
     }
 
-    SDL_Rect nextPieceRect;
 
-    nextPieceRect.x = offsetX + TILE_SIZE * LENGTH;
-    nextPieceRect.y = offsetY;
-    nextPieceRect.w = TILE_SIZE * (HEIGHT / 8);
-    nextPieceRect.h = TILE_SIZE * (HEIGHT / 8);
+    if(drawNext)
+    {
+        SDL_Rect nextPieceRect;
 
-    SDL_RenderDrawRect(renderer, &nextPieceRect);
+        nextPieceRect.x = offsetX + TILE_SIZE * LENGTH;
+        nextPieceRect.y = offsetY;
+        nextPieceRect.w = TILE_SIZE * (HEIGHT / 8);
+        nextPieceRect.h = TILE_SIZE * (HEIGHT / 8);
+
+        SDL_RenderDrawRect(renderer, &nextPieceRect);
+    }
 }
 
 void TetrisBoard::DrawTiles(int offsetX, int offsetY, SDL_Renderer* renderer)
@@ -126,11 +130,11 @@ void TetrisBoard::SetToTileColor(uint8_t id, SDL_Renderer* renderer)
     }
 }
 
-void TetrisBoard::DrawBoard(int offsetX, int offsetY, SDL_Renderer* renderer)
+void TetrisBoard::DrawBoard(int offsetX, int offsetY, bool drawNext, SDL_Renderer* renderer)
 {
-    DrawGrid(offsetX, offsetY, renderer);
+    DrawGrid(offsetX, offsetY, drawNext, renderer);
     DrawTiles(offsetX, offsetY, renderer);
-    DrawNextPiece(offsetX, offsetY, renderer);
+    if(drawNext) DrawNextPiece(offsetX, offsetY, renderer);
 }
 
 // ##COLLISION UTILS##
@@ -262,8 +266,6 @@ void TetrisBoard::GeneratePieces()
 
 bool TetrisBoard::CheckRows()
 {
-    std::cout << "Checking rows" << std::endl;
-
     int consecutiveRows = 0;
 
     for (int i = 0; i < HEIGHT; i++)
@@ -279,8 +281,6 @@ bool TetrisBoard::CheckRows()
 
         if(!foundEmpty) 
         {
-            std::cout << "Deleted!" << std::endl;
-
             consecutiveRows++;
             if(consecutiveRows == 1) firstRow = i;
             for(int h = 0; h < LENGTH; h++) tiles[i * LENGTH + h] = EMPTY;
@@ -289,7 +289,6 @@ bool TetrisBoard::CheckRows()
 
         else if(consecutiveRows > 0)
         {
-            std::cout << "updated!" << std::endl;
             UpdateRows(consecutiveRows);
             consecutiveRows = 0;
         }
@@ -297,7 +296,6 @@ bool TetrisBoard::CheckRows()
 
     if (consecutiveRows > 0)
     {
-        std::cout << "updated!" << std::endl;
         UpdateRows(consecutiveRows);
         consecutiveRows = 0;
     }
@@ -307,9 +305,6 @@ bool TetrisBoard::CheckRows()
 
 void TetrisBoard::UpdateRows(int rows)
 {
-    std::cout << firstRow << std::endl;
-    std::cout << firstRow * LENGTH - 1 << std::endl;
-
     for (int i = firstRow * LENGTH - 1; i >= 0; i--)
     {
         tiles[i + rows * LENGTH] = tiles[i];
@@ -321,13 +316,7 @@ void TetrisBoard::ClearTetramino()
 {
     currentTetramino->GetPiecePositions(LENGTH, positions);
 
-    for (int i = 0; i < 4; i++) if(positions[i] > 0)
-    {
-        tiles[positions[i]] = EMPTY;
-        std::cout << positions[i] << " ";
-    }
-
-    std::cout << std::endl;
+    for (int i = 0; i < 4; i++) if(positions[i] > 0) tiles[positions[i]] = EMPTY;
 }
 
 void TetrisBoard::Update()

@@ -32,8 +32,8 @@ public:
         lastRotation = 0;
     };
 
-    void DrawBoard(int offsetX, int offsetY, SDL_Renderer* renderer);
-    void DrawGrid(int offsetX, int offsetY, SDL_Renderer* renderer);
+    void DrawBoard(int offsetX, int offsetY, bool renderNext, SDL_Renderer* renderer);
+    void DrawGrid(int offsetX, int offsetY, bool renderNext, SDL_Renderer* renderer);
     void DrawTiles(int offsetX, int offsetY, SDL_Renderer* renderer);
     void DrawNextPiece(int offsetX, int offsetY, SDL_Renderer* renderer);
     void SetToTileColor(uint8_t id, SDL_Renderer* renderer);

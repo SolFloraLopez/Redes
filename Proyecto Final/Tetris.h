@@ -10,13 +10,13 @@
 class Message : public Serializable
 {
 public:
-    static const size_t MESSAGE_SIZE = sizeof(uint8_t) + sizeof(int) + sizeof(char) * 8 + sizeof(char);
+    static const size_t MESSAGE_SIZE = sizeof(uint8_t) + sizeof(int) * 4 + sizeof(char) * 8 ;
 
     enum MessageType
     {
         CONNECT     = 0,
         START       = 1,
-        INPUT       = 2,
+        DATA        = 2,
         END         = 3,
         DISCONNECT  = 4
     };
@@ -26,11 +26,11 @@ public:
     int from_bin(char * bobj);
 
     uint8_t type;
-    int nextTetraminoID = 0;
+    int currentTetraminoID = 0;
     int pivotPos = 0;
     int rotation = 0;
+    int set = 0;
     std::string playerName;
-    char input = ' ';
 };
 
 class TetrisClient 
@@ -62,12 +62,14 @@ public:
     void Render();
 
     void ProcessInput(SDL_Event);
-    void ProcessInputMsg();
+    void ProcessMsg();
 
+    void EndGame();
+    void Restart();
     void Connect();
     void Disconnect();
 
-    void SendInput(char i);
+    void SendData(bool set);
 
     void net_thread();
 
@@ -85,7 +87,8 @@ public:
     bool input = false;
     bool run = false;
 
-    char inputMsg = ' ';
+    Message lastMsg;
+    bool processed = false;
 
     struct timeval initialTime, elapsedTime;
 
@@ -104,15 +107,26 @@ private:
 class TetrisServer
 {
 public:
-    TetrisServer(const char * s, const char * p) : socket(s, p)
-    {
-        socket.bind();
+  enum State
+  {
+    CONNECTING = 0,
+    PLAYING = 1,
+    RESULT = 2,
+    DISCONNECT = 3
+  };
+
+  TetrisServer(const char *s, const char *p) : socket(s, p)
+  {
+      socket.bind();
     }
 
     void do_messages();
 
 private:
     std::vector<std::unique_ptr<Socket>> clients;
+    std::vector<std::string> names;
+
+    int state = CONNECTING;
 
     Socket socket;
 };
