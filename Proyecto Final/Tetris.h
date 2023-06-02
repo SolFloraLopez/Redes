@@ -1,42 +1,55 @@
 #include <SDL2/SDL.h>
 #include <sys/time.h>
-#include <vector>
-#include "Serializable.h"
-#include "Tetraminos.h"
+#include <memory>
 
-class TetrisBoard : public Serializable
+#include "Serializable.h"
+
+#include "TetrisBoard.cc"
+#include "Socket.cc"
+
+class Message : public Serializable
 {
 public:
-    static const uint8_t LENGTH = 10;
-    static const uint8_t HEIGHT = 40;
-    static const uint8_t TILE_SIZE = 20;
+    static const size_t MESSAGE_SIZE = sizeof(uint8_t) + sizeof(int) + sizeof(char) * 8 + sizeof(char);
 
-    TetrisBoard(){};
-
-    void to_bin() {};
-    int from_bin(char * data) {return 0;};
-
-    enum TileType
+    enum MessageType
     {
-        EMPTY   = 0,
-        RED     = 1,
-        ORANGE  = 2,
-        YELLOW  = 3,
-        GREEN   = 4,
-        BLUE    = 5,
-        PURPLE  = 6,
-        PINK    = 7
+        CONNECT     = 0,
+        START       = 1,
+        INPUT       = 2,
+        END         = 3,
+        DISCONNECT  = 4
     };
 
-    uint8_t tiles[400] = { 0 };
-    char* playerName;
-    int nextTetraminoID;
+    Message(){};
+    void to_bin();
+    int from_bin(char * bobj);
+
+    uint8_t type;
+    int nextTetraminoID = 0;
+    int pivotPos = 0;
+    int rotation = 0;
+    std::string playerName;
+    char input = ' ';
 };
 
 class TetrisClient 
 {
 public:
-    TetrisClient(){};
+    enum State
+    {
+        CONNECTING      = 0,
+        WAITING         = 1,
+        PLAYING         = 2,
+        RESULT          = 3,
+        DISCONNECT      = 4
+    };
+
+    TetrisClient(const char * s, const char * p, const char * name) : socket(s, p)    {
+        socket.bind();
+        playerName = name;
+    };
+    
     ~TetrisClient()
     {
         SDL_DestroyWindow(window);
@@ -47,53 +60,59 @@ public:
     void Run();
 
     void Render();
-    void DrawBoard(int offsetX, int offsetY, TetrisBoard b);
-    void DrawGrid(int offsetX, int offsetY, TetrisBoard b);
-    void DrawTiles(int offsetX, int offsetY, TetrisBoard b);
-    void DrawNextPiece(int offsetX, int offsetY, TetrisBoard b);
-    void SetToTileColor(uint8_t id);
 
     void ProcessInput(SDL_Event);
+    void ProcessInputMsg();
 
-    bool CheckBoundsRight();
-    bool CheckBoundsLeft();
-    bool CheckBoundsDown();
-    bool CheckColissions();
+    void Connect();
+    void Disconnect();
 
-    bool CorrectRotation();
-    bool CorrectPosition();
+    void SendInput(char i);
 
-    void SetPiece();
-    void ChangePiece();
-    void GeneratePieces();
+    void net_thread();
 
-    void CheckRows();
-    void UpdateRows(int rows);
+    int gameState = CONNECTING;
 
     SDL_Window * window = nullptr;
     SDL_Renderer * renderer = nullptr;
 
-    Tetramino* currentTetramino;
-    std::vector<uint8_t> tetraminoPool;
+    std::string playerName;
 
-    TetrisBoard board1;
-    TetrisBoard board2;
-    int positions[4];
-    int lastPivotPosition;
-    int lastRotation;
+    TetrisBoard* board1;
+    TetrisBoard* board2;
 
     bool set = false;
-
+    bool input = false;
     bool run = false;
+
+    char inputMsg = ' ';
 
     struct timeval initialTime, elapsedTime;
 
     int framesPerTick = 60;
+    int minFramesPerTick = 5;
     int remainingFrames = 60;
 
     int ticksToSpeedUp = 10;
     int remainingTicks = 10;
 
-    int rowsDeleted = 0;
-    int firstRow = 0;
+private:
+
+    Socket socket;
+};
+
+class TetrisServer
+{
+public:
+    TetrisServer(const char * s, const char * p) : socket(s, p)
+    {
+        socket.bind();
+    }
+
+    void do_messages();
+
+private:
+    std::vector<std::unique_ptr<Socket>> clients;
+
+    Socket socket;
 };

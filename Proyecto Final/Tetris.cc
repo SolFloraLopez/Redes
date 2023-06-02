@@ -2,291 +2,70 @@
 #include <iostream>
 #include <stdlib.h>
 
-void TetrisClient::DrawGrid(int offsetX, int offsetY, TetrisBoard b)
+void Message::to_bin()
 {
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    alloc_data(MESSAGE_SIZE);
 
-    for (int i = 0; i <= b.HEIGHT; i++)
-    {
-        int x = offsetX + b.TILE_SIZE * b.LENGTH;
-        int y = offsetY + b.TILE_SIZE * i;
+    memset(_data, 0, MESSAGE_SIZE);
 
-        SDL_RenderDrawLine(renderer, offsetX, y, x, y);
-    }
+    //Serializar los campos type, nick y message en el buffer _data
+    char* aux = _data;
 
-    for (int i = 0; i <= b.LENGTH; i++)
-    {
-        int x = offsetX + b.TILE_SIZE * i;
-        int y = offsetY + b.TILE_SIZE * b.HEIGHT;
+    memcpy(aux, &type, sizeof(uint8_t));
+    aux += sizeof(uint8_t);
+    cout << aux << std::endl;
 
-        SDL_RenderDrawLine(renderer, x, offsetY, x, y);
-    }
+    memcpy(aux, &input, sizeof(char));
+    aux += sizeof(char);
 
-    SDL_Rect nextPieceRect;
+    memcpy(aux, static_cast<const void*>(&nextTetraminoID), sizeof(int));
+    aux += sizeof(int);
 
-    nextPieceRect.x = offsetX + b.TILE_SIZE * b.LENGTH;
-    nextPieceRect.y = offsetY;
-    nextPieceRect.w = b.TILE_SIZE * (b.HEIGHT / 8);
-    nextPieceRect.h = b.TILE_SIZE * (b.HEIGHT / 8);
+    memcpy(aux, static_cast<const void*>(&pivotPos), sizeof(int));
+    aux += sizeof(int);
 
-    SDL_RenderDrawRect(renderer, &nextPieceRect);
+    memcpy(aux, static_cast<const void*>(&rotation), sizeof(int));
+    aux += sizeof(int);
+
+    memcpy(aux, playerName.c_str(), sizeof(char) * 8);
+    aux += sizeof(char) * 8;
 }
 
-void TetrisClient::DrawTiles(int offsetX, int offsetY, TetrisBoard b)
+int Message::from_bin(char * bobj)
 {
-    for (int i = 0; i < b.HEIGHT; i++)
-    {
-        for (int j = 0; j < b.LENGTH; j++)
-        {
-            int tile = i * b.LENGTH + j;
-            uint8_t tileColor = b.tiles[tile];
+    alloc_data(MESSAGE_SIZE);
 
-            if (tileColor != TetrisBoard::TileType::EMPTY)
-            {
-                SetToTileColor(tileColor);
+    memcpy(static_cast<void *>(_data), bobj, MESSAGE_SIZE);
 
-                SDL_Rect tileRect;
-                tileRect.x = offsetX + j * b.TILE_SIZE + 1;
-                tileRect.y = offsetY + i * b.TILE_SIZE + 1;
-                tileRect.w = b.TILE_SIZE - 1;
-                tileRect.h = b.TILE_SIZE - 1;
+    //Reconstruir la clase usando el buffer _data
+    char* aux = _data;
 
-                SDL_RenderFillRect(renderer, &tileRect);
-            }
-        }
-    }
+    memcpy(&type, aux, sizeof(uint8_t));
+    aux += sizeof(uint8_t);
+
+    memcpy(&input, aux, sizeof(char));
+    aux += sizeof(char);
+
+    memcpy(&nextTetraminoID, aux, sizeof(int));
+    aux += sizeof(int);
+
+    memcpy(&pivotPos, aux, sizeof(int));
+    aux += sizeof(int);
+
+    memcpy(&rotation, aux, sizeof(int));
+    aux += sizeof(int);
+
+    playerName = std::string(aux, aux + sizeof(char) * 8);
+    aux += sizeof(char) * 8;
+
+
+    return 0;
 }
 
-void TetrisClient::DrawNextPiece(int offsetX, int offsetY, TetrisBoard b)
-{
-    Tetramino *refTetramino = new Tetramino(b.nextTetraminoID);
-
-    int xCenter = offsetX + b.TILE_SIZE * b.LENGTH + b.TILE_SIZE * (b.HEIGHT / 16);
-    int yCenter = offsetY + b.TILE_SIZE * (b.HEIGHT / 16);
-
-    for (int i = 0; i < 4; i++)
-    {
-        int xPos;
-        int yPos;
-
-        if (i == 0)
-        {
-            xPos = 0; 
-            yPos = 0;
-        } 
-        
-        else
-        {
-            xPos = refTetramino->initialPos[i].first;
-            yPos = refTetramino->initialPos[i].second;
-        }
-
-        SDL_Rect tileRect;
-        tileRect.x = xCenter + xPos * b.TILE_SIZE;
-        tileRect.y = yCenter + yPos * b.TILE_SIZE;
-        tileRect.w = b.TILE_SIZE - 1;
-        tileRect.h = b.TILE_SIZE - 1;
-
-        SetToTileColor(refTetramino->_id + 1);
-        SDL_RenderFillRect(renderer, &tileRect);
-
-        tileRect.w = b.TILE_SIZE;
-        tileRect.h = b.TILE_SIZE;
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderDrawRect(renderer, &tileRect);
-    }
-}
-
-void TetrisClient::SetToTileColor(uint8_t id)
-{
-    switch (id)
-    {
-    case TetrisBoard::TileType::RED:
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        break;
-    case TetrisBoard::TileType::ORANGE:
-        SDL_SetRenderDrawColor(renderer, 255, 165, 0, 255);
-        break;
-    case TetrisBoard::TileType::YELLOW:
-        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-        break;
-    case TetrisBoard::TileType::GREEN:
-        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-        break;
-    case TetrisBoard::TileType::BLUE:
-        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-        break;
-    case TetrisBoard::TileType::PURPLE:
-        SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
-        break;
-    case TetrisBoard::TileType::PINK:
-        SDL_SetRenderDrawColor(renderer, 255, 192, 203, 255);
-        break;
-    default:
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        break;
-    }
-}
-
-void TetrisClient::DrawBoard(int offsetX, int offsetY, TetrisBoard b)
-{
-    DrawGrid(offsetX, offsetY, b);
-    DrawTiles(offsetX, offsetY, b);
-    DrawNextPiece(offsetX, offsetY, b);
-}
-
-bool TetrisClient::CheckBoundsRight()
-{
-    for (int i = 0; i < 4; i++)
-        if ((positions[i] + 1) % board1.LENGTH == 0)
-            return false;
-    return true;
-}
-
-bool TetrisClient::CheckBoundsLeft()
-{
-    for (int i = 0; i < 4; i++)
-        if ((positions[i] - 1) % board1.LENGTH == board1.LENGTH - 1)
-            return false;
-    return true;
-}
-
-bool TetrisClient::CheckBoundsDown()
-{
-    for (int i = 0; i < 4; i++)
-        if ((positions[i] + board1.LENGTH) >= board1.HEIGHT * board1.LENGTH)
-            return false;
-    return true;
-}
-
-bool TetrisClient::CheckColissions()
-{
-    for (int i = 0; i < 4; i++)
-        if (board1.tiles[positions[i]] != TetrisBoard::TileType::EMPTY)
-            return false;
-    return true;
-}
-
-bool TetrisClient::CorrectRotation()
-{
-    currentTetramino->GetPiecePositions(board1.LENGTH, positions);
-
-    if (!CheckColissions())
-    {
-        positions[0] -= board1.LENGTH;
-
-        if (!CorrectPosition())
-        {
-            currentTetramino->Rotate(lastRotation - currentTetramino->rotation);
-            currentTetramino->GetPiecePositions(board1.LENGTH, positions);
-
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool TetrisClient::CorrectPosition()
-{
-    currentTetramino->GetPiecePositions(board1.LENGTH, positions);
-
-    if (!CheckColissions())
-    {
-        positions[0] = lastPivotPosition;
-        currentTetramino->GetPiecePositions(board1.LENGTH, positions);
-
-        return false;
-    }
-
-    return true;
-}
-
-void TetrisClient::SetPiece()
-{
-    CheckRows();
-    ChangePiece();
-    positions[0] = board1.LENGTH + board1.LENGTH / 2;
-}
-
-void TetrisClient::ChangePiece()
-{
-    currentTetramino = new Tetramino(board1.nextTetraminoID);
-
-    if (tetraminoPool.size() <= 0)
-        GeneratePieces();
-
-    int next = rand() % tetraminoPool.size();
-    board1.nextTetraminoID = tetraminoPool[next];
-    tetraminoPool.erase(tetraminoPool.begin() + next);
-}
-
-void TetrisClient::GeneratePieces()
-{
-    for (uint8_t i = 0; i < 7; i++)
-        tetraminoPool.emplace_back(i);
-}
-
-void TetrisClient::CheckRows()
-{
-    int consecutiveRows = 0;
-
-    for (int i = 0; i < board1.HEIGHT; i++)
-    {
-        int j = 0;
-        bool foundEmpty = false;
-
-        while(j < board1.LENGTH && !foundEmpty)
-        {
-            if(board1.tiles[i * board1.LENGTH + j] == TetrisBoard::EMPTY) foundEmpty = true;
-            j++;
-        }
-
-        if(!foundEmpty) 
-        {
-            std::cout << "Deleted!" << std::endl;
-
-            consecutiveRows++;
-            if(consecutiveRows == 1) firstRow = i;
-            for(int h = 0; h < board1.LENGTH; h++) board1.tiles[i * board1.LENGTH + h] = TetrisBoard::EMPTY;
-            rowsDeleted++;
-        }
-
-        else if(consecutiveRows > 0)
-        {
-            std::cout << "updated!" << std::endl;
-            UpdateRows(consecutiveRows);
-            consecutiveRows = 0;
-        }
-    }
-
-    if (consecutiveRows > 0)
-    {
-        std::cout << "updated!" << std::endl;
-        UpdateRows(consecutiveRows);
-        consecutiveRows = 0;
-    }
-
-    std::cout << std::endl;
-}
-
-void TetrisClient::UpdateRows(int rows)
-{
-    std::cout << firstRow << std::endl;
-    std::cout << firstRow * board1.LENGTH - 1 << std::endl;
-
-    for (int i = firstRow * board1.LENGTH - 1; i >= 0; i--)
-    {
-        board1.tiles[i + rows * board1.LENGTH] = board1.tiles[i];
-        board1.tiles[i] = TetrisBoard::EMPTY;
-    }
-}
-
+// ##CORE GAME LOOP FUCNTIONS##
 void TetrisClient::Init()
 {
     srand(time(NULL));
-    GeneratePieces();
-    ChangePiece();
 
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
     {
@@ -302,13 +81,12 @@ void TetrisClient::Init()
     if (renderer == nullptr)
         std::cout << "Problem creating Renderer" << std::endl;
 
-    positions[0] = (board1.HEIGHT / 2) * board1.LENGTH + board1.LENGTH / 2;
+    else std::cout << "Renderer created" << std::endl;
 
-    lastPivotPosition = positions[0];
-    lastRotation = currentTetramino->rotation;
+    board1 = new TetrisBoard();
+    board2 = new TetrisBoard();
 
-    // for (int i = board1.HEIGHT * board1.LENGTH - 1; i > 300; i--)
-    //     board1.tiles[i] = rand() % 2;
+    std::cout << "msg Initialized" << std::cout;
 
     run = true;
     gettimeofday(&initialTime, NULL);
@@ -319,156 +97,366 @@ void TetrisClient::Render()
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    DrawBoard(100, 100 - 2 * board1.TILE_SIZE, board1);
-    DrawBoard(550, 100 - 2 * board2.TILE_SIZE, board2);
+    //std::cout << "Calling Drawmsg()" << std::cout;
+    board1->DrawBoard(100, 100 - 2 * board1->TILE_SIZE, renderer);
+    board2->DrawBoard(550, 100 - 2 * board2->TILE_SIZE, renderer);
 
+    //std::cout << "Calling RenderPresent()" << std::cout;
     SDL_RenderPresent(renderer);
 }
 
 void TetrisClient::ProcessInput(SDL_Event event)
 {
+    //std::cout << event.key.keysym.sym << std::endl;
+
     switch (event.key.keysym.sym)
     {
     case SDLK_RIGHT:
-        if (CheckBoundsRight())
+        if (board1->CheckBoundsRight())
         {
-            lastPivotPosition = positions[0];
-            positions[0]++;
-            if (!CorrectPosition())
-                set = true;
+            board1->lastPivotPosition = board1->positions[0];
+            board1->positions[0]++;
+            board1->CorrectPosition();
+            SendInput('R');
         }
         break;
     case SDLK_LEFT:
-        if (CheckBoundsLeft())
+        if (board1->CheckBoundsLeft())
         {
-            lastPivotPosition = positions[0];
-            positions[0]--;
-            if (!CorrectPosition())
-                set = true;
+            board1->lastPivotPosition = board1->positions[0];
+            board1->positions[0]--;
+            board1->CorrectPosition();
+            SendInput('L');
         }
         break;
     case SDLK_DOWN:
-        if (CheckBoundsDown())
+        if (board1->CheckBoundsDown())
         {
-            lastPivotPosition = positions[0];
-            positions[0] += board1.LENGTH;
-            if (!CorrectPosition())
-                set = true;
+            board1->lastPivotPosition = board1->positions[0];
+            board1->positions[0] += board1->LENGTH;
+            if (!board1->CorrectPosition())
+                board1->set = true;
+            SendInput('D');
         }
         else
-            set = true;
+            board1->set = true;
         break;
     case SDLK_q:
-        if (CheckBoundsDown() && CheckBoundsLeft() && CheckBoundsDown())
-        {
-            lastRotation = currentTetramino->rotation;
-            currentTetramino->Rotate(-1);
-            if (!CorrectRotation())
-                set = true;
-        }
+        board1->Rotate(-1);
+        SendInput('Q');
         break;
     case SDLK_e:
-        if (CheckBoundsDown() && CheckBoundsLeft() && CheckBoundsDown())
-        {
-            lastRotation = currentTetramino->rotation;
-            currentTetramino->Rotate(1);
-            if (!CorrectRotation())
-                set = true;
-        }
+        board1->Rotate(1);
+        SendInput('E');
         break;
     default:
         break;
     }
 }
 
+void TetrisClient::ProcessInputMsg()
+{
+    switch (inputMsg)
+    {
+    // case 'R':
+    //     if (board2->CheckBoundsRight())
+    //     {
+    //         board2->lastPivotPosition = board2->positions[0];
+    //         board2->positions[0]++;
+    //         board2->CorrectPosition();
+    //     }
+    //     break;
+    // case 'L':
+    //     if (board2->CheckBoundsLeft())
+    //     {
+    //         board2->lastPivotPosition = board2->positions[0];
+    //         board2->positions[0]--;
+    //         board2->CorrectPosition();
+    //     }
+    //     break;
+    // case 'D':
+    //     if (board2->CheckBoundsDown())
+    //     {
+    //         board2->lastPivotPosition = board2->positions[0];
+    //         board2->positions[0] += board2->LENGTH;
+    //         board2->CorrectPosition();
+    //     }
+    //     break;
+    // case 'Q':
+    //     board2->Rotate(-1);
+    //     break;
+    // case 'E':
+    //     board2->Rotate(1);
+    //     break;
+    case 'S':
+        board2->set = true;
+    default:
+        break;
+    }
+
+    inputMsg = ' ';
+}
+
 void TetrisClient::Run()
 {
-    remainingFrames--;
+    //std::cout << gameState << std::endl;
 
-    gettimeofday(&elapsedTime, NULL);
-    int seconds = elapsedTime.tv_sec - initialTime.tv_sec;
-
-    currentTetramino->GetPiecePositions(board1.LENGTH, positions);
-    for (int i = 0; i < 4; i++)
-        board1.tiles[positions[i]] = TetrisBoard::TileType::EMPTY;
-    //std::cout << seconds << ":" << elapsedTime.tv_usec<< std::endl;
+    input = false;
 
     SDL_Event event;
+    SDL_Event keyEvent;
     while (SDL_PollEvent(&event))
     {
         switch (event.type)
         {
         case SDL_QUIT:
+            gameState == DISCONNECT;
+            Disconnect();
             run = false;
             break;
         case SDL_KEYDOWN:
-            ProcessInput(event);
+            if(PLAYING && event.key.keysym.sym > 0)
+            {
+                input = true;
+                keyEvent.key.keysym.sym = event.key.keysym.sym;
+            }
             break;
         default:
             break;
         }
     }
 
-    if (remainingFrames <= 0)
+    if(gameState == PLAYING) 
     {
-        if (CheckBoundsDown())
+        remainingFrames--;
+
+        gettimeofday(&elapsedTime, NULL);
+        int seconds = elapsedTime.tv_sec - initialTime.tv_sec;
+
+        std::cout << "Board1: " << std::endl;
+        board1->ClearTetramino();
+        board2->ClearTetramino();
+
+        //std::cout << seconds << ":" << elapsedTime.tv_usec<< std::endl;
+        if(input) ProcessInput(keyEvent);
+        ProcessInputMsg();
+
+        if (remainingFrames <= 0)
         {
-            lastPivotPosition = positions[0];
-            positions[0] += board1.LENGTH;
-            if (!CorrectPosition()) set = true;
+            if (board1->CheckBoundsDown()) board1->set = board1->CheckPieceSets();
+            else board1->set = true;
+            SendInput(' ');
+
+            //if (board2->CheckBoundsDown()) board2->CheckPieceSets();
+
+            remainingTicks--;
         }
-        else set = true;
 
-        remainingFrames = framesPerTick;
-        remainingTicks--;
+        board1->Update();
+        board2->Update();
 
-        if(remainingTicks <= 0) 
+        if (board1->set)
+        {
+            SendInput('S');
+            //std::cout << "Calling SetPiece()" << std::cout;
+            if(!board1->SetPiece()) gameState = RESULT;
+            board1->set = false;
+        }
+
+        if (board2->set)
+        {   
+            board2->SetPiece();
+            board2->set = false;
+        }
+
+        //std::cout << "Calling Render()" << std::cout;
+
+        if (remainingTicks <= 0)
         {
             framesPerTick--;
             remainingTicks = ticksToSpeedUp;
-            //std::cout << framesPerTick << std::endl;
+            if (framesPerTick < minFramesPerTick) framesPerTick = minFramesPerTick;
+
+            //std::cout << "Calling Sendmsg()" << std::cout;
+        }   
+
+        if (remainingFrames <= 0)
+        {
+            //Sendmsg();
+            remainingFrames = framesPerTick;
         }
+
+        SDL_Delay(1000 / 60);
     }
 
-    for (int i = 0; i < 4; i++)
-        board1.tiles[positions[i]] = currentTetramino->_id + 1;
-
-    if (set)
+    if(gameState == RESULT)
     {
-        SetPiece();
-        set = false;
+
     }
 
-    rowsDeleted = 0;
-
-    // for (int i = 0; i < board1.HEIGHT; i++)
-    // {
-    //     for (int j = 0; j < board1.LENGTH; j++)
-    //     {
-    //         int tile = i * board1.LENGTH + j;
-
-    //         //std::cout << unsigned(board1.tiles[tile]) << " ";
-    //     }
-
-    //     //std::cout << std::endl;
-    // }
+    if(gameState == DISCONNECT)
+    {
+        Disconnect();
+        run = false;
+    }
 
     Render();
-
-    SDL_Delay(1000 / 60);
 }
 
-int main(int argc, char **argv)
+void TetrisClient::Connect()
 {
-    TetrisClient *tetrisClient = new TetrisClient();
-    tetrisClient->Init();
+    std::cout << "CONNECTING" << std::endl;
 
-    while (tetrisClient->run)
+    Message msg;
+    msg.type = Message::MessageType::CONNECT;
+    msg.playerName = playerName;
+    msg.nextTetraminoID = board1->nextTetraminoID;
+
+    socket.send(msg, socket);
+
+    gameState = WAITING;
+}
+
+void TetrisClient::Disconnect()
+{
+    std::cout << "DISCONNECTING" << std::endl;
+
+    Message msg;
+    msg.type = Message::MessageType::DISCONNECT;
+    msg.playerName = playerName;
+
+    socket.send(msg, socket);
+}
+
+void TetrisClient::SendInput(char i)
+{
+    std::cout << "SENDING INPUT: " << i << std::endl;
+
+    Message msg;
+    msg.type = Message::MessageType::INPUT;
+    msg.nextTetraminoID = board1->nextTetraminoID;
+    msg.playerName = playerName;
+    msg.input = i;
+    
+    msg.pivotPos = board1->positions[0];
+    msg.rotation = board1->currentTetramino->rotation;
+
+    std::cout << msg.pivotPos << std::endl;
+    std::cout << msg.rotation << std::endl;
+
+    socket.send(msg, socket);
+}
+
+void TetrisClient::net_thread()
+{
+    while(true)
     {
-        tetrisClient->Run();
+        //Recibir Mensajes de red
+        Message msg;
+
+        if(socket.recv(msg) >= 0)
+        {
+            switch(msg.type)
+            {
+            case Message::MessageType::START:
+                gameState = PLAYING;
+                SendInput(' ');
+                //std::cout << "PLAYING AGAINST: " << msg.playerName << std::endl;
+                break;
+            case Message::MessageType::INPUT:
+                if(gameState == PLAYING) 
+                {
+                    inputMsg = msg.input;
+                    board2->nextTetraminoID = msg.nextTetraminoID;
+
+                    std::cout << "Position: " << msg.pivotPos << std::endl;
+                    std::cout << "Rotation: " << msg.rotation << std::endl;
+
+                    std::cout << "Board2: " << std::endl;
+                    board2->ClearTetramino();
+                    
+                    board2->positions[0] = msg.pivotPos;
+                    board2->currentTetramino->Rotate(msg.rotation - board2->currentTetramino->rotation);
+
+                    board2->currentTetramino->GetPiecePositions(board2->LENGTH, board2->positions);
+                    board2->Update();
+                }
+                break;
+            case Message::MessageType::END:
+                gameState = RESULT;
+            default:
+                break;
+            }
+
+            //std::cout << gameState << std::endl;
+        }
+
+        
+        //Mostrar en pantalla el mensaje de la forma "nick: mensaje"
+        //std::cout << msg.nick << ": " << msg.message << std::endl;
     }
+}
 
-    delete tetrisClient;
+void TetrisServer::do_messages()
+{
+    while (true)
+    {
+        /*
+         * NOTA: los clientes están definidos con "smart pointers", es necesario
+         * crear un unique_ptr con el objeto socket recibido y usar std::move
+         * para añadirlo al vector
+         */
 
-    return 0;
+        //Recibir Mensajes en y en función del tipo de mensaje
+        // - LOGIN: Añadir al vector clients
+        // - LOGOUT: Eliminar del vector clients
+        // - MESSAGE: Reenviar el mensaje a todos los clientes (menos el emisor)
+        
+        Message msg;
+	    Socket *msgSocket;
+        
+        int res = socket.recv(msg, msgSocket);
+
+        //if(res < 0) continue;
+
+        std::unique_ptr<Socket> client(msgSocket);
+
+        std::cout << "NAME: " << msg.playerName << " TYPE: " << unsigned(msg.type) /*<< "MESSAGGE: " << msg.type*/ << std::endl;
+
+        if (msg.type == Message::MessageType::CONNECT){    
+            std::cout << "CONNECTING WITH " << msg.playerName << std::endl;                    
+            if(clients.size() < 2) clients.push_back(std::move(client));
+
+            if (clients.size() >= 2) 
+            {
+                std::cout << "Lobby full" << std::endl;
+
+                Message startMsg;
+                startMsg.type = Message::MessageType::START;
+                startMsg.playerName = "Server";
+
+                for(auto it = clients.begin(); it != clients.end(); ++it) socket.send(startMsg, **it);
+            }
+        }
+
+        else if(msg.type == Message::MessageType::INPUT || msg.type == Message::MessageType::END){
+            for(auto it = clients.begin(); it != clients.end(); ++it) if(!(**it == *client)) socket.send(msg, **it);
+
+            std::cout << std::endl;
+            std::cout << msg.type << std::endl;
+            std::cout << msg.playerName << std::endl;
+            std::cout << msg.nextTetraminoID << std::endl;
+            std::cout << msg.input << std::endl;
+            std::cout << std::endl;
+        }
+
+        else if(msg.type == Message::MessageType::DISCONNECT){
+            std::cout << "DISCONNECTING " << msg.playerName << std::endl;
+            auto it = clients.begin();
+            while(it != clients.end() && !(**it == *client)) it++;
+            if(it != clients.end()) clients.erase(it);
+        }
+
+        else std::cerr << "Error" << std::endl;
+    }
 }
